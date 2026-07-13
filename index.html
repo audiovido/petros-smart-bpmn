@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08080c" />
-    <meta name="description" content="Petros — a client-side AI workspace for BPMN 2.0 modeling, auditing, and SOP generation." />
+    <meta id="metaDescription" name="description" content="Petros — a client-side AI workspace for BPMN 2.0 modeling, auditing, and SOP generation." />
     <title>Petros — Smart BPMN AI Platform</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,7 +21,7 @@
 
     <div class="app-shell">
       <header class="topbar glass-panel">
-        <a class="brand" href="#" aria-label="Petros home">
+        <a class="brand" href="#" aria-label="Petros home" data-i18n-aria="petrosHome">
           <span class="brand-mark" aria-hidden="true"><i data-lucide="workflow"></i></span>
           <span class="brand-copy">
             <strong>PETROS<span class="brand-dot">.</span></strong>
@@ -29,7 +29,7 @@
           </span>
         </a>
 
-        <div class="topbar-center" aria-label="Workspace status">
+        <div class="topbar-center" aria-label="Workspace status" data-i18n-aria="workspaceStatus">
           <span class="live-dot"></span>
           <span data-i18n="workspaceLive">Workspace live</span>
           <span class="status-separator"></span>
@@ -37,13 +37,13 @@
         </div>
 
         <div class="topbar-actions">
-          <button class="icon-button language-button" id="languageToggle" type="button" aria-label="Switch language">
+          <button class="icon-button language-button" id="languageToggle" type="button" aria-label="Switch language" data-i18n-aria="switchLanguage">
             <span id="languageLabel">FA</span>
           </button>
           <button class="icon-button" id="settingsButton" type="button" data-i18n-aria="settings" aria-label="Settings">
             <i data-lucide="settings-2"></i>
           </button>
-          <div class="avatar" aria-label="Local user">AS</div>
+          <div class="avatar" aria-label="Local user" data-i18n-aria="localUser">AS</div>
         </div>
       </header>
 
@@ -54,10 +54,10 @@
               <span class="eyebrow" data-i18n="controlEyebrow">AI CONTROL CENTER</span>
               <h1 data-i18n="controlTitle">Build with intent.</h1>
             </div>
-            <span class="ai-status" id="aiStatus"><i data-lucide="sparkles"></i><span data-i18n="demoMode">Demo mode</span></span>
+            <span class="ai-status" id="aiStatus"><i data-lucide="key-round"></i><span data-i18n="keyRequired">API key required</span></span>
           </div>
 
-          <nav class="mode-tabs" aria-label="AI modes">
+          <nav class="mode-tabs" aria-label="AI modes" data-i18n-aria="aiModes">
             <button class="mode-tab is-active" data-mode="design" type="button"><i data-lucide="wand-sparkles"></i><span data-i18n="design">Design</span></button>
             <button class="mode-tab" data-mode="audit" type="button"><i data-lucide="scan-search"></i><span data-i18n="audit">Audit</span></button>
             <button class="mode-tab" data-mode="sop" type="button"><i data-lucide="file-text"></i><span data-i18n="sop">SOP</span></button>
@@ -67,7 +67,7 @@
             <article class="message message-ai">
               <div class="message-avatar"><i data-lucide="bot"></i></div>
               <div class="message-body">
-                <div class="message-meta"><strong>PETROS AI</strong><span data-i18n="now">NOW</span></div>
+                <div class="message-meta"><strong data-i18n="petrosAi">PETROS AI</strong><span data-i18n="now">NOW</span></div>
                 <p data-i18n="welcomeMessage">Describe a business process or tell me how to refine the canvas. I’ll translate your intent into a production-ready BPMN 2.0 workflow.</p>
               </div>
             </article>
@@ -75,8 +75,8 @@
             <article class="insight-card" id="resultCard" hidden>
               <div class="insight-heading">
                 <span class="insight-icon"><i data-lucide="lightbulb"></i></span>
-                <div><span class="eyebrow" id="resultEyebrow">AI ANALYSIS</span><h2 id="resultTitle">Workflow insights</h2></div>
-                <button class="close-result" id="closeResult" type="button" aria-label="Close"><i data-lucide="x"></i></button>
+                <div><span class="eyebrow" id="resultEyebrow" data-i18n="analysisEyebrow">AI ANALYSIS</span><h2 id="resultTitle" data-i18n="workflowInsights">Workflow insights</h2></div>
+                <button class="close-result" id="closeResult" type="button" aria-label="Close" data-i18n-aria="close"><i data-lucide="x"></i></button>
               </div>
               <div class="rich-output" id="resultOutput"></div>
             </article>
@@ -109,8 +109,8 @@
             <div class="document-title">
               <span class="document-icon"><i data-lucide="git-branch"></i></span>
               <div>
-                <div class="title-line"><h2 id="workflowTitle">Customer Onboarding</h2><span class="version">V1.0</span></div>
-                <p><span data-i18n="bpmnDocument">BPMN 2.0 document</span><span>•</span><span id="elementCount">8 elements</span></p>
+                <div class="title-line"><h2 id="workflowTitle" data-i18n="workflowTitle">Untitled Workflow</h2><span class="version">V1.0</span></div>
+                <p><span data-i18n="bpmnDocument">BPMN 2.0 document</span><span>•</span><span id="elementCount">0 elements</span></p>
               </div>
             </div>
             <div class="canvas-actions">
@@ -126,7 +126,7 @@
           </div>
 
           <div class="canvas-stage" id="canvasStage">
-            <div id="bpmnCanvas" aria-label="Interactive BPMN diagram canvas"></div>
+            <div id="bpmnCanvas" aria-label="Interactive BPMN diagram canvas" data-i18n-aria="interactiveCanvas"></div>
             <div class="canvas-loader" id="canvasLoader" hidden>
               <div class="loader-orbit"><span></span></div>
               <strong data-i18n="thinking">Architecting your workflow…</strong>
@@ -148,7 +148,7 @@
 
     <div class="modal-backdrop" id="settingsModal" hidden>
       <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-        <button class="modal-close" id="settingsClose" type="button" aria-label="Close"><i data-lucide="x"></i></button>
+        <button class="modal-close" id="settingsClose" type="button" aria-label="Close" data-i18n-aria="close"><i data-lucide="x"></i></button>
         <span class="modal-icon"><i data-lucide="key-round"></i></span>
         <span class="eyebrow" data-i18n="connectionEyebrow">AI CONNECTION</span>
         <h2 id="settingsTitle" data-i18n="settingsTitle">Connect your intelligence layer</h2>
@@ -165,9 +165,14 @@
 
           <label for="modelInput" data-i18n="model">Model</label>
           <input id="modelInput" type="text" value="gpt-4o-mini" autocomplete="off" spellcheck="false" />
+          <div class="model-catalog-head">
+            <span id="modelCatalogStatus" data-i18n="modelLoading">Loading live models…</span>
+            <button id="refreshModels" type="button" data-i18n-aria="refreshModels" aria-label="Refresh models"><i data-lucide="refresh-cw"></i><span data-i18n="refresh">Refresh</span></button>
+          </div>
+          <div class="model-catalog" id="modelCatalog" aria-live="polite"></div>
 
           <label for="apiKeyInput" data-i18n="apiKey">API key</label>
-          <div class="key-input"><input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-••••••••••••••••" /><button id="toggleKey" type="button" aria-label="Show API key"><i data-lucide="eye"></i></button></div>
+          <div class="key-input"><input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-••••••••••••••••" /><button id="toggleKey" type="button" aria-label="Show API key" data-i18n-aria="showApiKey"><i data-lucide="eye"></i></button></div>
           <a class="provider-key-link" id="providerKeyLink" href="#" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i><span data-i18n="getProviderKey">Get a provider API key</span></a>
           <p class="privacy-note"><i data-lucide="shield-check"></i><span data-i18n="privacyNote">Stored locally on this device. Never sent to our servers.</span></p>
 
@@ -187,6 +192,6 @@
 
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bpmn-js@18.8.0/dist/bpmn-modeler.development.js"></script>
-    <script type="module" src="./js/app.js?v=2.0.0"></script>
+    <script type="module" src="./js/app.js?v=3.0.0"></script>
   </body>
 </html>

@@ -2,7 +2,9 @@
 
 A fully client-side BPMN design workspace built for GitHub Pages. It combines an interactive `bpmn-js` canvas with senior-grade AI generation, assisted editing, auditing, SOP generation, bilingual English/Persian UI, and BPMN/SVG export.
 
-Petros supports OpenAI, Anthropic, OpenRouter, Groq, DeepSeek, Google Gemini, Mistral AI, and custom OpenAI-compatible HTTPS endpoints. Each provider has its own locally stored key and model. A persistent business-context profile is included in every AI request so generation, audits, and SOPs stay specific to the organization.
+Petros supports OpenRouter (the default), OpenAI, Anthropic, Groq, DeepSeek, Google Gemini, Mistral AI, and custom OpenAI-compatible HTTPS endpoints. Each provider has its own locally stored key and model. A persistent business-context profile is included in every AI request so generation, edits, audits, and SOPs stay specific to the organization.
+
+There is no mock or demo AI mode. The canvas starts with a valid blank BPMN document, while every AI action requires the selected provider's key. Settings includes a live model catalog: OpenRouter exposes five provider-verified free choices and five intelligence-ranked choices; other providers load their authenticated catalogs and never label a model free without verifiable price metadata.
 
 ## Run locally
 
@@ -28,6 +30,7 @@ API keys are stored separately in the browser's `localStorage` and sent directly
 - `css/styles.css` — responsive glassmorphism/cyberpunk visual system
 - `js/app.js` — application state and interactions
 - `js/providers.js` — provider registry, endpoints, defaults, and key validation
+- `js/model-service.js` — live provider model discovery and verified ranking
 - `js/ai-service.js` — provider adapters and strict senior business-process prompts
 - `js/bpmn-service.js` — `bpmn-js` import, edit, and export integration
 - `js/i18n.js` — English and Persian translations

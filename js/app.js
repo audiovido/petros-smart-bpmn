@@ -1,46 +1,48 @@
-import { translations, applyLanguage } from "./i18n.js?v=2.0.0";
-import { DEMO_BPMN } from "./demo-bpmn.js?v=2.0.0";
-import { generateBpmn, auditBpmn, generateSop } from "./ai-service.js?v=2.0.0";
-import { BpmnWorkspace } from "./bpmn-service.js?v=2.0.0";
-import { extractBpmnXml, isEditInstruction, renderMarkdown, safeFilename } from "./utils.js?v=2.0.0";
-import { auditOfflineBpmn, generateOfflineBpmn, sopOfflineBpmn } from "./offline-service.js?v=2.0.0";
-import { PROVIDERS, getProvider, providerOptions } from "./providers.js?v=2.0.0";
+import { translations, applyLanguage } from "./i18n.js?v=3.0.0";
+import { BLANK_BPMN } from "./blank-bpmn.js?v=3.0.0";
+import { generateBpmn, auditBpmn, generateSop } from "./ai-service.js?v=3.0.0";
+import { BpmnWorkspace } from "./bpmn-service.js?v=3.0.0";
+import { extractBpmnXml, isEditInstruction, renderMarkdown, safeFilename } from "./utils.js?v=3.0.0";
+import { PROVIDERS, getProvider, providerOptions } from "./providers.js?v=3.0.0";
+import { discoverModels, fallbackCatalog } from "./model-service.js?v=3.0.0";
 
 const STORAGE = { config: "petros.ai.config", lang: "petros.language", xml: "petros.workflow.xml" };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const storedValue = (key) => localStorage.getItem(STORAGE[key]);
 let settingsDraft = null;
-let settingsProvider = "openai";
+let settingsProvider = "openrouter";
+let catalogRequest = 0;
+let lastCatalog = fallbackCatalog("openrouter");
+let catalogStatusKey = "modelLoading";
+
 const state = {
   lang: storedValue("lang") || "en",
   config: loadConfig(),
   mode: "design",
   busy: false,
   workspace: null,
-  documentName: "Customer Onboarding",
-  elementCount: 0
+  documentName: "Untitled Workflow",
+  elementCount: 0,
+  resultType: ""
 };
 
 function loadConfig() {
-  const fallback = { provider: "openai", models: {}, apiKeys: {}, customEndpoint: "", businessContext: "" };
+  const fallback = { version: 3, provider: "openrouter", models: {}, apiKeys: {}, customEndpoint: "", businessContext: "" };
   try {
     const saved = JSON.parse(storedValue("config")) || {};
-    const provider = PROVIDERS[saved.provider] ? saved.provider : "openai";
+    const provider = saved.version === 3 && PROVIDERS[saved.provider] ? saved.provider : "openrouter";
     const models = { ...(saved.models || {}) };
     const apiKeys = { ...(saved.apiKeys || {}) };
     if (saved.model && !models[provider]) models[provider] = saved.model;
     if (saved.apiKey && !apiKeys[provider]) apiKeys[provider] = saved.apiKey;
-    return { provider, models, apiKeys, customEndpoint: saved.customEndpoint || "", businessContext: saved.businessContext || "" };
+    return { version: 3, provider, models, apiKeys, customEndpoint: saved.customEndpoint || "", businessContext: saved.businessContext || "" };
   } catch { return fallback; }
 }
 
 function activeKey() { return state.config.apiKeys?.[state.config.provider] || ""; }
 function activeModel() { return state.config.models?.[state.config.provider] || getProvider(state.config.provider).defaultModel; }
-function activeAiConfig() {
-  return { ...state.config, apiKey: activeKey(), model: activeModel() };
-}
-
+function activeAiConfig() { return { ...state.config, apiKey: activeKey(), model: activeModel() }; }
 function t(key) { return translations[state.lang]?.[key] || translations.en[key] || key; }
 
 function toast(title, body, type = "info") {
@@ -78,32 +80,46 @@ function updateConnectionStatus() {
   const status = $("#aiStatus");
   const connected = Boolean(activeKey());
   status.classList.toggle("connected", connected);
-  status.querySelector("span").textContent = connected ? `${getProvider(state.config.provider).label} · ${t("connected")}` : t("demoMode");
+  const provider = getProvider(state.config.provider).label;
+  status.querySelector("span").textContent = connected ? `${provider} · ${t("connected")}` : `${provider} · ${t("keyRequired")}`;
+}
+
+function displayDocumentName() {
+  return ["Untitled Workflow", "گردش‌کار بدون عنوان", ""].includes(state.documentName) ? t("workflowTitle") : state.documentName;
 }
 
 function updateDocumentMeta() {
-  $("#workflowTitle").textContent = state.documentName || t("workflowTitle");
+  $("#workflowTitle").textContent = displayDocumentName();
   const unit = state.elementCount === 1 ? t("elementSingular") : t("elementPlural");
   $("#elementCount").textContent = `${state.elementCount} ${unit}`;
 }
 
-function appendUserMessage(text) {
+function appendUserMessage(message) {
   const article = document.createElement("article");
   article.className = "message message-user";
-  article.innerHTML = `<div class="message-body"><div class="message-meta"><strong>YOU</strong><span>${t("now")}</span></div><p></p></div>`;
-  article.querySelector("p").textContent = text;
+  article.innerHTML = `<div class="message-body"><div class="message-meta"><strong></strong><span></span></div><p></p></div>`;
+  article.querySelector("strong").textContent = t("you");
+  article.querySelector("span").textContent = t("now");
+  article.querySelector("p").textContent = message;
   $("#conversation").append(article);
   $("#conversation").scrollTop = $("#conversation").scrollHeight;
 }
 
 function showResult(type, markdown) {
-  const card = $("#resultCard");
+  state.resultType = type;
   const isAudit = type === "audit";
   $("#resultEyebrow").textContent = t(isAudit ? "auditEyebrow" : "sopEyebrow");
   $("#resultTitle").textContent = t(isAudit ? "auditTitle" : "sopTitle");
   $("#resultOutput").innerHTML = renderMarkdown(markdown);
-  card.hidden = false;
+  $("#resultCard").hidden = false;
   $("#conversation").scrollTop = $("#conversation").scrollHeight;
+}
+
+function requireKey() {
+  if (activeKey()) return true;
+  toast(t("keyNeededTitle"), t("keyNeededBody"), "error");
+  openSettings();
+  return false;
 }
 
 function setMode(mode) {
@@ -119,19 +135,9 @@ async function handleGenerate(event) {
   const input = $("#promptInput");
   const instruction = input.value.trim();
   if (!instruction) { toast(t("missingPromptTitle"), t("missingPromptBody")); return; }
+  if (!requireKey()) return;
   appendUserMessage(instruction);
   input.value = "";
-  if (!activeKey()) {
-    setBusy(true);
-    try {
-      await state.workspace.import(generateOfflineBpmn(instruction, state.documentName));
-      toast(t("offlineGeneratedTitle"), t("offlineGeneratedBody"), "success");
-    } catch (error) {
-      console.error(error);
-      toast(t("invalidXmlTitle"), t("invalidXmlBody"), "error");
-    } finally { setBusy(false); }
-    return;
-  }
   setBusy(true);
   try {
     const currentXml = isEditInstruction(instruction) ? state.workspace.xml : "";
@@ -141,15 +147,13 @@ async function handleGenerate(event) {
     toast(t("generatedTitle"), t("generatedBody"), "success");
   } catch (error) {
     console.error(error);
-    const malformed = /BPMN|definitions|XML|unparsable|parse/i.test(error.message);
-    if (malformed) toast(t("invalidXmlTitle"), t("invalidXmlBody"), "error");
+    if (/BPMN|definitions|XML|unparsable|parse/i.test(error.message)) toast(t("invalidXmlTitle"), t("invalidXmlBody"), "error");
     else notifyApiError(error);
   } finally { setBusy(false); }
 }
 
 async function runAudit() {
-  if (state.busy) return;
-  if (!activeKey()) { showResult("audit", auditOfflineBpmn(await state.workspace.exportXml(), state.lang)); return; }
+  if (state.busy || !requireKey()) return;
   setBusy(true);
   try { showResult("audit", await auditBpmn(activeAiConfig(), await state.workspace.exportXml())); }
   catch (error) { console.error(error); notifyApiError(error); }
@@ -157,8 +161,7 @@ async function runAudit() {
 }
 
 async function runSop() {
-  if (state.busy) return;
-  if (!activeKey()) { showResult("sop", sopOfflineBpmn(await state.workspace.exportXml(), state.lang)); return; }
+  if (state.busy || !requireKey()) return;
   setBusy(true);
   try { showResult("sop", await generateSop(activeAiConfig(), await state.workspace.exportXml())); }
   catch (error) { console.error(error); notifyApiError(error); }
@@ -177,7 +180,7 @@ async function exportWorkflow(format) {
   try {
     const isSvg = format === "svg";
     const content = isSvg ? await state.workspace.exportSvg() : await state.workspace.exportXml();
-    download(content, safeFilename($("#workflowTitle").textContent, format), isSvg ? "image/svg+xml" : "application/xml");
+    download(content, safeFilename(displayDocumentName(), format), isSvg ? "image/svg+xml" : "application/xml");
     $("#exportMenu").hidden = true;
   } catch (error) {
     console.error(error);
@@ -187,7 +190,9 @@ async function exportWorkflow(format) {
 }
 
 function populateProviders() {
-  $("#providerSelect").replaceChildren(...providerOptions().map(({ value, label }) => Object.assign(document.createElement("option"), { value, textContent: label })));
+  const selected = $("#providerSelect").value || settingsProvider || state.config.provider;
+  $("#providerSelect").replaceChildren(...providerOptions().map(({ value, label }) => Object.assign(document.createElement("option"), { value, textContent: value === "custom" ? t("customProvider") : label })));
+  $("#providerSelect").value = selected;
 }
 
 function stashProviderFields() {
@@ -195,6 +200,70 @@ function stashProviderFields() {
   settingsDraft.models[settingsProvider] = $("#modelInput").value.trim();
   settingsDraft.apiKeys[settingsProvider] = $("#apiKeyInput").value.trim();
   if (settingsProvider === "custom") settingsDraft.customEndpoint = $("#customEndpointInput").value.trim();
+}
+
+function markSelectedModel() {
+  const selected = $("#modelInput").value.trim();
+  $$("#modelCatalog .model-chip").forEach((button) => button.classList.toggle("is-selected", button.dataset.model === selected));
+}
+
+function renderModelCatalog(catalog = lastCatalog) {
+  lastCatalog = catalog;
+  $("#modelCatalogStatus").textContent = t(catalogStatusKey);
+  const catalogNode = $("#modelCatalog");
+  catalogNode.replaceChildren();
+  const groups = [["freeModels", catalog.free || [], "noFreeModels"], ["bestModels", catalog.best || [], null]];
+  groups.forEach(([titleKey, models, emptyKey]) => {
+    const section = document.createElement("section");
+    section.className = "model-group";
+    const title = document.createElement("strong");
+    title.className = "model-group-title";
+    title.textContent = t(titleKey);
+    section.append(title);
+    if (!models.length && emptyKey) {
+      const empty = document.createElement("p");
+      empty.className = "model-empty";
+      empty.textContent = t(emptyKey);
+      section.append(empty);
+    }
+    models.forEach((model) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "model-chip";
+      button.dataset.model = model.id;
+      button.title = `${t("selectModel")}: ${model.id}`;
+      const name = document.createElement("span");
+      name.textContent = model.name || model.id;
+      const id = document.createElement("small");
+      id.textContent = model.id;
+      button.append(name, id);
+      button.addEventListener("click", () => { $("#modelInput").value = model.id; markSelectedModel(); });
+      section.append(button);
+    });
+    catalogNode.append(section);
+  });
+  markSelectedModel();
+}
+
+async function loadModelCatalog(providerId = settingsProvider) {
+  const requestId = ++catalogRequest;
+  catalogStatusKey = "modelLoading";
+  $("#modelCatalogStatus").textContent = t(catalogStatusKey);
+  $("#refreshModels").disabled = true;
+  try {
+    const key = settingsDraft?.apiKeys?.[providerId] || "";
+    const catalog = await discoverModels({ providerId, apiKey: key, customEndpoint: settingsDraft?.customEndpoint || "" });
+    if (requestId !== catalogRequest) return;
+    catalogStatusKey = catalog.live ? "modelLive" : key ? "modelFallback" : "modelKeyNeeded";
+    renderModelCatalog(catalog);
+  } catch (error) {
+    if (requestId !== catalogRequest) return;
+    console.warn("Model catalog unavailable", error?.status || error?.name || "error");
+    catalogStatusKey = "modelFallback";
+    renderModelCatalog(fallbackCatalog(providerId));
+  } finally {
+    if (requestId === catalogRequest) $("#refreshModels").disabled = false;
+  }
 }
 
 function renderProviderFields(providerId) {
@@ -208,13 +277,14 @@ function renderProviderFields(providerId) {
   $("#customEndpointInput").value = settingsDraft.customEndpoint || "";
   $("#providerKeyLink").hidden = !provider.consoleUrl;
   $("#providerKeyLink").href = provider.consoleUrl || "#";
+  loadModelCatalog(providerId);
 }
 
 function openSettings() {
   settingsDraft = JSON.parse(JSON.stringify(state.config));
   settingsDraft.models ||= {};
   settingsDraft.apiKeys ||= {};
-  renderProviderFields(settingsDraft.provider || "openai");
+  renderProviderFields(settingsDraft.provider || "openrouter");
   $("#businessContextInput").value = settingsDraft.businessContext || "";
   $("#settingsModal").hidden = false;
   setTimeout(() => $("#apiKeyInput").focus(), 80);
@@ -232,6 +302,7 @@ function saveSettings(event) {
   if (apiKey && !provider.keyPattern.test(apiKey)) { toast(t("keyFormatTitle"), t("keyFormatBody"), "error"); return; }
   if (apiKey && !model) { toast(t("modelErrorTitle"), t("modelErrorBody"), "error"); return; }
   if (providerId === "custom" && apiKey && !/^https:\/\//i.test(settingsDraft.customEndpoint || "")) { toast(t("endpointErrorTitle"), t("endpointErrorBody"), "error"); return; }
+  settingsDraft.version = 3;
   settingsDraft.businessContext = $("#businessContextInput").value.trim();
   state.config = settingsDraft;
   localStorage.setItem(STORAGE.config, JSON.stringify(state.config));
@@ -253,11 +324,10 @@ function bindEvents() {
   $("#settingsClose").addEventListener("click", closeSettings);
   $("#settingsModal").addEventListener("click", (event) => { if (event.target === $("#settingsModal")) closeSettings(); });
   $("#settingsForm").addEventListener("submit", saveSettings);
-  $("#providerSelect").addEventListener("change", (event) => {
-    stashProviderFields();
-    settingsDraft.provider = event.target.value;
-    renderProviderFields(event.target.value);
-  });
+  $("#providerSelect").addEventListener("change", (event) => { stashProviderFields(); settingsDraft.provider = event.target.value; renderProviderFields(event.target.value); });
+  $("#modelInput").addEventListener("input", markSelectedModel);
+  $("#apiKeyInput").addEventListener("change", () => { if (settingsDraft) settingsDraft.apiKeys[settingsProvider] = $("#apiKeyInput").value.trim(); });
+  $("#refreshModels").addEventListener("click", () => { stashProviderFields(); loadModelCatalog(settingsProvider); });
   $("#toggleKey").addEventListener("click", () => { const input = $("#apiKeyInput"); input.type = input.type === "password" ? "text" : "password"; });
   $("#clearKey").addEventListener("click", () => {
     stashProviderFields();
@@ -265,10 +335,25 @@ function bindEvents() {
     state.config = settingsDraft;
     localStorage.setItem(STORAGE.config, JSON.stringify(state.config));
     $("#apiKeyInput").value = "";
-    updateConnectionStatus(); closeSettings(); toast(t("clearedTitle"), t("clearedBody"));
+    updateConnectionStatus();
+    loadModelCatalog(settingsProvider);
+    toast(t("clearedTitle"), t("clearedBody"));
   });
   $("#languageToggle").addEventListener("click", () => {
-    state.lang = state.lang === "en" ? "fa" : "en"; localStorage.setItem(STORAGE.lang, state.lang); applyLanguage(state.lang); $("#languageLabel").textContent = state.lang === "en" ? "FA" : "EN"; updateConnectionStatus(); updateDocumentMeta();
+    state.lang = state.lang === "en" ? "fa" : "en";
+    localStorage.setItem(STORAGE.lang, state.lang);
+    applyLanguage(state.lang);
+    $("#languageLabel").textContent = state.lang === "en" ? "FA" : "EN";
+    updateConnectionStatus();
+    updateDocumentMeta();
+    populateProviders();
+    state.workspace?.setLanguage(state.lang);
+    renderModelCatalog(lastCatalog);
+    if (state.resultType && !$("#resultCard").hidden) {
+      const isAudit = state.resultType === "audit";
+      $("#resultEyebrow").textContent = t(isAudit ? "auditEyebrow" : "sopEyebrow");
+      $("#resultTitle").textContent = t(isAudit ? "auditTitle" : "sopTitle");
+    }
   });
   $$("#promptSuggestions button").forEach((button) => button.addEventListener("click", () => { $("#promptInput").value = t(button.dataset.promptKey); $("#promptInput").focus(); }));
   $("#closeResult").addEventListener("click", () => { $("#resultCard").hidden = true; });
@@ -292,12 +377,11 @@ async function init() {
     state.elementCount = count;
     updateDocumentMeta();
     $("#autosaveLabel").textContent = t("autosaved");
-  });
+  }, state.lang);
   const saved = storedValue("xml");
-  try { await state.workspace.import(saved || DEMO_BPMN); }
-  catch { await state.workspace.import(DEMO_BPMN); }
+  try { await state.workspace.import(saved || BLANK_BPMN); }
+  catch { await state.workspace.import(BLANK_BPMN); }
   $("#zoomLevel").textContent = `${Math.round(state.workspace.zoom() * 100)}%`;
-  if (!activeKey()) setTimeout(() => toast(t("demoTitle"), t("demoBody")), 650);
 }
 
-init().catch((error) => { console.error(error); toast("Initialization failed", "Refresh the page and verify CDN access.", "error"); });
+init().catch((error) => { console.error(error); toast(t("initializationTitle"), t("initializationBody"), "error"); });
