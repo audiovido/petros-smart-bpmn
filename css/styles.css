@@ -88,6 +88,15 @@ body[dir="rtl"] .conversation { margin: 20px 0 12px -6px; padding: 0 0 0 6px; }
 .message-user .message-body { background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 12px 12px 3px 12px; padding: 10px 12px; max-width: 88%; }
 .message-user .message-meta { justify-content: flex-end; }
 .message-user p { color: #d9dce1; }
+.assistant-reply { padding-block: 3px; }
+.assistant-reply .message-body { min-width: 0; flex: 1; border: 1px solid rgba(0,240,255,.12); border-radius: 3px 12px 12px 12px; padding: 10px 12px; background: linear-gradient(135deg, rgba(0,240,255,.05), rgba(255,255,255,.018)); }
+body[dir="rtl"] .assistant-reply .message-body { border-radius: 12px 3px 12px 12px; }
+.assistant-reply.is-error .message-body { border-color: rgba(255,85,85,.18); background: linear-gradient(135deg, rgba(255,85,85,.055), rgba(255,255,255,.018)); }
+.assistant-reply.is-error .message-avatar { color: var(--coral); border-color: rgba(255,85,85,.2); background: var(--coral-soft); }
+.assistant-copy { color: #b8bdc6; font-size: 12px; line-height: 1.65; }
+.assistant-copy p { color: inherit; margin: 5px 0; }
+.assistant-copy strong { color: #f1f3f5; }
+.assistant-copy code { color: var(--cyan); font: 500 10px var(--mono); }
 
 .insight-card { margin-top: 18px; padding: 15px; border: 1px solid rgba(0,240,255,.14); border-radius: 15px; background: linear-gradient(145deg, rgba(0,240,255,.055), rgba(255,255,255,.02)); }
 .insight-heading { display: flex; align-items: center; gap: 10px; }

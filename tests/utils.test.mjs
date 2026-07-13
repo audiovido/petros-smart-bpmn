@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { extractBpmnXml, isLikelyBpmn, isEditInstruction, safeFilename, renderMarkdown } from "../js/utils.js";
+import { extractBpmnXml, isLikelyBpmn, isConversationalPrompt, isEditInstruction, safeFilename, renderMarkdown } from "../js/utils.js";
 import { BLANK_BPMN } from "../js/blank-bpmn.js";
 import { rankModelPayload, fallbackCatalog } from "../js/model-service.js";
 import { PROVIDERS, getProvider, providerOptions } from "../js/providers.js";
@@ -16,6 +16,11 @@ assert.equal(isEditInstruction("Add an approval task after review"), true);
 assert.equal(isEditInstruction("افزودن مرحله تایید مدیر بعد از بررسی"), true);
 assert.equal(isEditInstruction("Customer refund process"), false);
 assert.equal(isEditInstruction("فرایند بازپرداخت مشتری"), false);
+assert.equal(isConversationalPrompt("hi"), true);
+assert.equal(isConversationalPrompt("سلام!"), true);
+assert.equal(isConversationalPrompt("What can you do?"), true);
+assert.equal(isConversationalPrompt("چطور از پتروس استفاده کنم؟"), true);
+assert.equal(isConversationalPrompt("Create an invoice approval process"), false);
 assert.match(renderMarkdown("## Health\n- Strong\n- **Fast**"), /<h2>Health<\/h2><ul><li>Strong<\/li><li><strong>Fast<\/strong><\/li><\/ul>/);
 
 const ranked = rankModelPayload({ data: [

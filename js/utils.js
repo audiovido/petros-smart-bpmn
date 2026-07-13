@@ -26,6 +26,14 @@ export function isEditInstruction(instruction) {
   return /\b(add|append|insert|remove|delete|change|modify|move|rename|replace|connect|disconnect|update|edit|after|before)\b|(?:اضافه|افزودن|حذف|تغییر|ویرایش|جابه[‌ ]?جا|قبل|بعد|وصل|قطع|نام.*عوض)/iu.test(text);
 }
 
+export function isConversationalPrompt(instruction) {
+  const text = String(instruction || "").trim().toLowerCase();
+  if (!text) return false;
+  if (/^(?:hi|hello|hey|hiya|good\s+(?:morning|afternoon|evening)|سلام|درود|صبح\s*بخیر|عصر\s*بخیر|شب\s*بخیر)[!,.؟?\s]*$/iu.test(text)) return true;
+  if (/^(?:thanks?|thank\s+you|bye|goodbye|خداحافظ|ممنون|متشکرم)[!,.؟?\s]*$/iu.test(text)) return true;
+  return /\b(?:who are you|what can you do|how (?:do i|to) use (?:petros|this (?:site|app|platform))|help me use (?:petros|this (?:site|app|platform))|explain (?:petros|this (?:site|app|platform)))\b|(?:تو کی هستی|چه کار(?:ی|هایی) می‌توانی|چطور از (?:پتروس|این (?:سایت|برنامه|پلتفرم)) استفاده|راهنمای استفاده از (?:پتروس|این (?:سایت|برنامه|پلتفرم)))/iu.test(text);
+}
+
 export function safeFilename(name, extension) {
   const base = (name || "workflow").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "-").replace(/^-|-$/g, "") || "workflow";
   return `${base}.${extension}`;

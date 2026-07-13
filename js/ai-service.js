@@ -8,6 +8,8 @@ const AUDIT_RULES = `Act as the senior assurance lead. Audit the BPMN XML for un
 
 const SOP_RULES = `Act as the senior operations architect. Convert the BPMN XML into an implementation-ready Standard Operating Procedure in Markdown. Include: purpose, business outcome, scope, roles/RACI, prerequisites, numbered procedure, decision rules, exceptions and escalation, controls, systems/data, SLAs, KPIs, records/evidence, and continuous-improvement cadence. Preserve the diagram's language. Be specific to the supplied business context. Do not mention XML.`;
 
+const CHAT_RULES = `Answer the user's message directly as Petros, a senior process-intelligence copilot. Use the same language as the user. Be concise, helpful, warm, and specific. For a greeting, greet the user and briefly explain that you can design or edit BPMN workflows, audit risks and bottlenecks, and generate SOPs. For product questions, explain how to use Petros accurately. When current BPMN is supplied, use it as context. Never output BPMN XML in chat mode. Do not claim that an action was completed unless it actually appears in the supplied workflow.`;
+
 function systemPrompt(config, taskRules) {
   const business = String(config.businessContext || "").trim();
   return `${SENIOR_CORE}\n\nBUSINESS CONTEXT:\n${business || "No organization-specific context was supplied. Infer conservatively from the workflow and clearly avoid invented policies."}\n\nTASK CONTRACT:\n${taskRules}`;
@@ -36,7 +38,7 @@ function ensureComplete(choice) {
   if (reason === "length" || reason === "MAX_TOKENS") throw new Error("AI response was truncated before the requested document completed");
 }
 
-async function openAICompatibleRequest(config, system, user) {
+async function openAICompatibleRequest(config, system, user, maxTokens = 8000) {
   const provider = getProvider(config.provider);
   const endpoint = config.provider === "custom" ? config.customEndpoint : provider.endpoint;
   if (!/^https:\/\//i.test(endpoint || "")) throw new Error("A secure HTTPS compatible endpoint is required");
@@ -50,7 +52,7 @@ async function openAICompatibleRequest(config, system, user) {
     headers,
     body: JSON.stringify({
       model: config.model,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
       messages: [{ role: "system", content: system }, { role: "user", content: user }]
     })
   });
@@ -61,7 +63,7 @@ async function openAICompatibleRequest(config, system, user) {
   return normalizeContent(choice?.message?.content);
 }
 
-async function anthropicRequest(config, system, user) {
+async function anthropicRequest(config, system, user, maxTokens = 8000) {
   const provider = getProvider(config.provider);
   const response = await fetch(provider.endpoint, {
     method: "POST",
@@ -71,7 +73,7 @@ async function anthropicRequest(config, system, user) {
       "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true"
     },
-    body: JSON.stringify({ model: config.model, max_tokens: 8000, temperature: 0.1, system, messages: [{ role: "user", content: user }] })
+    body: JSON.stringify({ model: config.model, max_tokens: maxTokens, temperature: 0.1, system, messages: [{ role: "user", content: user }] })
   });
   if (!response.ok) await throwProviderError(response, provider.label);
   const data = await response.json();
@@ -79,7 +81,7 @@ async function anthropicRequest(config, system, user) {
   return data.content?.filter((part) => part.type === "text").map((part) => part.text).join("") || "";
 }
 
-async function geminiRequest(config, system, user) {
+async function geminiRequest(config, system, user, maxTokens = 8000) {
   const provider = getProvider(config.provider);
   const model = encodeURIComponent(config.model);
   const response = await fetch(`${provider.endpoint}/${model}:generateContent`, {
@@ -88,7 +90,7 @@ async function geminiRequest(config, system, user) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: maxTokens }
     })
   });
   if (!response.ok) await throwProviderError(response, provider.label);
@@ -99,13 +101,13 @@ async function geminiRequest(config, system, user) {
   return candidate?.content?.parts?.map((part) => part.text || "").join("") || "";
 }
 
-async function request(config, taskRules, user) {
+async function request(config, taskRules, user, maxTokens = 8000) {
   const provider = getProvider(config.provider);
   const system = systemPrompt(config, taskRules);
   let output;
-  if (provider.adapter === "anthropic") output = await anthropicRequest(config, system, user);
-  else if (provider.adapter === "gemini") output = await geminiRequest(config, system, user);
-  else output = await openAICompatibleRequest(config, system, user);
+  if (provider.adapter === "anthropic") output = await anthropicRequest(config, system, user, maxTokens);
+  else if (provider.adapter === "gemini") output = await geminiRequest(config, system, user, maxTokens);
+  else output = await openAICompatibleRequest(config, system, user, maxTokens);
   if (!String(output || "").trim()) throw new Error(`${provider.label} returned an empty response`);
   return output;
 }
@@ -119,3 +121,7 @@ export function generateBpmn(config, instruction, currentXml = "") {
 
 export function auditBpmn(config, xml) { return request(config, AUDIT_RULES, `Audit this current BPMN workflow:\n\n${xml}`); }
 export function generateSop(config, xml) { return request(config, SOP_RULES, `Create the SOP for this current BPMN workflow:\n\n${xml}`); }
+export function chatWithPetros(config, message, currentXml = "") {
+  const workflow = currentXml ? `\n\nCURRENT BPMN CONTEXT:\n${currentXml}` : "";
+  return request(config, CHAT_RULES, `USER MESSAGE:\n${message}${workflow}`, 1400);
+}

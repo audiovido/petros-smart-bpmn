@@ -1,8 +1,8 @@
-import { translations, applyLanguage } from "./i18n.js?v=3.0.0";
+import { translations, applyLanguage } from "./i18n.js?v=3.1.0";
 import { BLANK_BPMN } from "./blank-bpmn.js?v=3.0.0";
-import { generateBpmn, auditBpmn, generateSop } from "./ai-service.js?v=3.0.0";
+import { generateBpmn, auditBpmn, generateSop, chatWithPetros } from "./ai-service.js?v=3.1.0";
 import { BpmnWorkspace } from "./bpmn-service.js?v=3.0.0";
-import { extractBpmnXml, isEditInstruction, renderMarkdown, safeFilename } from "./utils.js?v=3.0.0";
+import { extractBpmnXml, isConversationalPrompt, isEditInstruction, renderMarkdown, safeFilename } from "./utils.js?v=3.1.0";
 import { PROVIDERS, getProvider, providerOptions } from "./providers.js?v=3.0.0";
 import { discoverModels, fallbackCatalog } from "./model-service.js?v=3.0.0";
 
@@ -57,12 +57,16 @@ function toast(title, body, type = "info") {
   setTimeout(() => { node.classList.add("is-leaving"); setTimeout(() => node.remove(), 260); }, 4200);
 }
 
-function setBusy(value) {
+function setBusy(value, purpose = "workflow") {
   state.busy = value;
   $("#generateButton").disabled = value;
   $("#auditButton").disabled = value;
   $("#sopButton").disabled = value;
   $("#canvasLoader").hidden = !value;
+  if (value) {
+    $("#canvasLoader strong").textContent = t(purpose === "chat" ? "chatThinking" : "thinking");
+    $("#canvasLoader small").textContent = t(purpose === "chat" ? "chatThinkingHint" : "thinkingHint");
+  }
 }
 
 function notifyApiError(error) {
@@ -105,6 +109,18 @@ function appendUserMessage(message) {
   $("#conversation").scrollTop = $("#conversation").scrollHeight;
 }
 
+function appendAiMessage(markdown, type = "info") {
+  const article = document.createElement("article");
+  article.className = `message message-ai assistant-reply ${type === "error" ? "is-error" : ""}`;
+  article.innerHTML = `<div class="message-avatar"><i data-lucide="bot"></i></div><div class="message-body"><div class="message-meta"><strong></strong><span></span></div><div class="assistant-copy"></div></div>`;
+  article.querySelector("strong").textContent = t("petrosAi");
+  article.querySelector(".message-meta span").textContent = t("now");
+  article.querySelector(".assistant-copy").innerHTML = renderMarkdown(markdown);
+  $("#conversation").append(article);
+  window.lucide?.createIcons({ nodes: [article] });
+  $("#conversation").scrollTop = $("#conversation").scrollHeight;
+}
+
 function showResult(type, markdown) {
   state.resultType = type;
   const isAudit = type === "audit";
@@ -138,17 +154,30 @@ async function handleGenerate(event) {
   if (!requireKey()) return;
   appendUserMessage(instruction);
   input.value = "";
-  setBusy(true);
+  const isChat = isConversationalPrompt(instruction);
+  setBusy(true, isChat ? "chat" : "workflow");
   try {
+    if (isChat) {
+      const answer = await chatWithPetros(activeAiConfig(), instruction, await state.workspace.exportXml());
+      appendAiMessage(answer);
+      return;
+    }
     const currentXml = isEditInstruction(instruction) ? state.workspace.xml : "";
     const response = await generateBpmn(activeAiConfig(), instruction, currentXml);
     const xml = extractBpmnXml(response);
     await state.workspace.import(xml);
+    const replyKey = currentXml ? "updatedReply" : "generatedReply";
+    appendAiMessage(t(replyKey).replace("{count}", state.elementCount).replace("{model}", activeModel()));
     toast(t("generatedTitle"), t("generatedBody"), "success");
   } catch (error) {
     console.error(error);
-    if (/BPMN|definitions|XML|unparsable|parse/i.test(error.message)) toast(t("invalidXmlTitle"), t("invalidXmlBody"), "error");
-    else notifyApiError(error);
+    if (/BPMN|definitions|XML|unparsable|parse/i.test(error.message)) {
+      toast(t("invalidXmlTitle"), t("invalidXmlBody"), "error");
+      appendAiMessage(t("invalidXmlReply"), "error");
+    } else {
+      notifyApiError(error);
+      appendAiMessage(t("requestFailedReply"), "error");
+    }
   } finally { setBusy(false); }
 }
 
