@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08080c" />
+    <meta name="description" content="Petros — a client-side AI workspace for BPMN 2.0 modeling, auditing, and SOP generation." />
+    <title>Petros — Smart BPMN AI Platform</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bpmn-js@18.8.0/dist/assets/diagram-js.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bpmn-js@18.8.0/dist/assets/bpmn-font/css/bpmn.css" />
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <div class="app-shell">
+      <header class="topbar glass-panel">
+        <a class="brand" href="#" aria-label="Petros home">
+          <span class="brand-mark" aria-hidden="true"><i data-lucide="workflow"></i></span>
+          <span class="brand-copy">
+            <strong>PETROS<span class="brand-dot">.</span></strong>
+            <small data-i18n="brandSubtitle">PROCESS INTELLIGENCE</small>
+          </span>
+        </a>
+
+        <div class="topbar-center" aria-label="Workspace status">
+          <span class="live-dot"></span>
+          <span data-i18n="workspaceLive">Workspace live</span>
+          <span class="status-separator"></span>
+          <span id="autosaveLabel" data-i18n="autosaved">Autosaved</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-button language-button" id="languageToggle" type="button" aria-label="Switch language">
+            <span id="languageLabel">FA</span>
+          </button>
+          <button class="icon-button" id="settingsButton" type="button" data-i18n-aria="settings" aria-label="Settings">
+            <i data-lucide="settings-2"></i>
+          </button>
+          <div class="avatar" aria-label="Local user">AS</div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="control-panel glass-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow" data-i18n="controlEyebrow">AI CONTROL CENTER</span>
+              <h1 data-i18n="controlTitle">Build with intent.</h1>
+            </div>
+            <span class="ai-status" id="aiStatus"><i data-lucide="sparkles"></i><span data-i18n="demoMode">Demo mode</span></span>
+          </div>
+
+          <nav class="mode-tabs" aria-label="AI modes">
+            <button class="mode-tab is-active" data-mode="design" type="button"><i data-lucide="wand-sparkles"></i><span data-i18n="design">Design</span></button>
+            <button class="mode-tab" data-mode="audit" type="button"><i data-lucide="scan-search"></i><span data-i18n="audit">Audit</span></button>
+            <button class="mode-tab" data-mode="sop" type="button"><i data-lucide="file-text"></i><span data-i18n="sop">SOP</span></button>
+          </nav>
+
+          <section class="conversation" id="conversation" aria-live="polite">
+            <article class="message message-ai">
+              <div class="message-avatar"><i data-lucide="bot"></i></div>
+              <div class="message-body">
+                <div class="message-meta"><strong>PETROS AI</strong><span data-i18n="now">NOW</span></div>
+                <p data-i18n="welcomeMessage">Describe a business process or tell me how to refine the canvas. I’ll translate your intent into a production-ready BPMN 2.0 workflow.</p>
+              </div>
+            </article>
+
+            <article class="insight-card" id="resultCard" hidden>
+              <div class="insight-heading">
+                <span class="insight-icon"><i data-lucide="lightbulb"></i></span>
+                <div><span class="eyebrow" id="resultEyebrow">AI ANALYSIS</span><h2 id="resultTitle">Workflow insights</h2></div>
+                <button class="close-result" id="closeResult" type="button" aria-label="Close"><i data-lucide="x"></i></button>
+              </div>
+              <div class="rich-output" id="resultOutput"></div>
+            </article>
+          </section>
+
+          <div class="prompt-suggestions" id="promptSuggestions">
+            <button type="button" data-prompt-key="suggestionOne" data-i18n="suggestionOne">Customer refund process</button>
+            <button type="button" data-prompt-key="suggestionTwo" data-i18n="suggestionTwo">Add manager approval</button>
+          </div>
+
+          <form class="composer" id="promptForm">
+            <label class="sr-only" for="promptInput" data-i18n="promptLabel">Describe your process</label>
+            <textarea id="promptInput" rows="3" data-i18n-placeholder="promptPlaceholder" placeholder="Describe a process or request a change…"></textarea>
+            <div class="composer-footer">
+              <div class="composer-hint"><kbd>↵</kbd><span data-i18n="sendHint">to generate</span></div>
+              <button class="generate-button" id="generateButton" type="submit">
+                <span data-i18n="generate">Generate</span><i data-lucide="arrow-up"></i>
+              </button>
+            </div>
+          </form>
+
+          <div class="quick-actions">
+            <button id="auditButton" type="button"><span class="quick-icon coral"><i data-lucide="shield-check"></i></span><span><strong data-i18n="runAudit">Run AI audit</strong><small data-i18n="auditHint">Find risks & bottlenecks</small></span><i data-lucide="chevron-right"></i></button>
+            <button id="sopButton" type="button"><span class="quick-icon cyan"><i data-lucide="notebook-tabs"></i></span><span><strong data-i18n="generateSop">Generate SOP</strong><small data-i18n="sopHint">Create operating guide</small></span><i data-lucide="chevron-right"></i></button>
+          </div>
+        </aside>
+
+        <section class="canvas-panel glass-panel">
+          <div class="canvas-header">
+            <div class="document-title">
+              <span class="document-icon"><i data-lucide="git-branch"></i></span>
+              <div>
+                <div class="title-line"><h2 id="workflowTitle">Customer Onboarding</h2><span class="version">V1.0</span></div>
+                <p><span data-i18n="bpmnDocument">BPMN 2.0 document</span><span>•</span><span id="elementCount">8 elements</span></p>
+              </div>
+            </div>
+            <div class="canvas-actions">
+              <button class="action-button" id="fitButton" type="button" aria-label="Fit" data-i18n-aria="fit"><i data-lucide="maximize"></i><span data-i18n="fit">Fit</span></button>
+              <div class="export-wrap">
+                <button class="action-button primary" id="exportButton" type="button" aria-label="Export" data-i18n-aria="export"><i data-lucide="download"></i><span data-i18n="export">Export</span><i data-lucide="chevron-down"></i></button>
+                <div class="export-menu glass-panel" id="exportMenu" hidden>
+                  <button id="exportBpmn" type="button"><i data-lucide="file-code-2"></i><span><strong>BPMN 2.0</strong><small data-i18n="editableFile">Editable source file</small></span></button>
+                  <button id="exportSvg" type="button"><i data-lucide="image"></i><span><strong>SVG</strong><small data-i18n="vectorImage">Vector image</small></span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="canvas-stage" id="canvasStage">
+            <div id="bpmnCanvas" aria-label="Interactive BPMN diagram canvas"></div>
+            <div class="canvas-loader" id="canvasLoader" hidden>
+              <div class="loader-orbit"><span></span></div>
+              <strong data-i18n="thinking">Architecting your workflow…</strong>
+              <small data-i18n="thinkingHint">Validating BPMN 2.0 structure</small>
+            </div>
+            <div class="canvas-meta">
+              <span><i data-lucide="mouse-pointer-2"></i><span data-i18n="canvasTip">Drag to pan · Scroll to zoom</span></span>
+              <span class="zoom-level" id="zoomLevel">100%</span>
+            </div>
+          </div>
+
+          <footer class="canvas-footer">
+            <div><span class="health-dot"></span><span data-i18n="syntaxValid">BPMN syntax valid</span></div>
+            <div class="footer-stats"><span><i data-lucide="clock-3"></i><span id="lastEdited" data-i18n="editedNow">Edited just now</span></span><span><i data-lucide="lock-keyhole"></i><span data-i18n="localOnly">Local only</span></span></div>
+          </footer>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="settingsModal" hidden>
+      <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <button class="modal-close" id="settingsClose" type="button" aria-label="Close"><i data-lucide="x"></i></button>
+        <span class="modal-icon"><i data-lucide="key-round"></i></span>
+        <span class="eyebrow" data-i18n="connectionEyebrow">AI CONNECTION</span>
+        <h2 id="settingsTitle" data-i18n="settingsTitle">Connect your intelligence layer</h2>
+        <p data-i18n="settingsDescription">Your key stays in this browser and is sent only to your selected AI provider.</p>
+
+        <form id="settingsForm">
+          <label for="providerSelect" data-i18n="provider">Provider</label>
+          <div class="select-wrap"><select id="providerSelect"></select><i data-lucide="chevron-down"></i></div>
+
+          <div id="customEndpointGroup" hidden>
+            <label for="customEndpointInput" data-i18n="customEndpoint">Compatible endpoint</label>
+            <input id="customEndpointInput" type="url" autocomplete="off" spellcheck="false" placeholder="https://provider.example/v1/chat/completions" />
+          </div>
+
+          <label for="modelInput" data-i18n="model">Model</label>
+          <input id="modelInput" type="text" value="gpt-4o-mini" autocomplete="off" spellcheck="false" />
+
+          <label for="apiKeyInput" data-i18n="apiKey">API key</label>
+          <div class="key-input"><input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-••••••••••••••••" /><button id="toggleKey" type="button" aria-label="Show API key"><i data-lucide="eye"></i></button></div>
+          <a class="provider-key-link" id="providerKeyLink" href="#" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i><span data-i18n="getProviderKey">Get a provider API key</span></a>
+          <p class="privacy-note"><i data-lucide="shield-check"></i><span data-i18n="privacyNote">Stored locally on this device. Never sent to our servers.</span></p>
+
+          <label for="businessContextInput" data-i18n="businessContext">Business context</label>
+          <textarea id="businessContextInput" rows="4" data-i18n-placeholder="businessContextPlaceholder" placeholder="Describe your company, customers, policies, roles, systems, and operational goals…"></textarea>
+          <p class="privacy-note"><i data-lucide="brain-circuit"></i><span data-i18n="businessContextNote">Used in every AI request so Petros answers with senior, business-aware guidance.</span></p>
+
+          <div class="modal-actions">
+            <button class="danger-button" id="clearKey" type="button" data-i18n="clearKey">Clear key</button>
+            <button class="save-button" type="submit"><span data-i18n="saveConnection">Save connection</span><i data-lucide="arrow-right"></i></button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="toast-region" id="toastRegion" aria-live="assertive"></div>
+
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bpmn-js@18.8.0/dist/bpmn-modeler.development.js"></script>
+    <script type="module" src="./js/app.js?v=2.0.0"></script>
+  </body>
+</html>
