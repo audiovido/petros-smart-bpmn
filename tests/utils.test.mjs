@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { extractBpmnXml, isLikelyBpmn, isConversationalPrompt, isEditInstruction, safeFilename, renderMarkdown } from "../js/utils.js";
+import { extractBpmnXml, isLikelyBpmn, isConversationalPrompt, isEditInstruction, isWorkflowPrompt, safeFilename, renderMarkdown } from "../js/utils.js";
 import { BLANK_BPMN } from "../js/blank-bpmn.js";
 import { rankModelPayload, fallbackCatalog } from "../js/model-service.js";
 import { PROVIDERS, getProvider, providerOptions } from "../js/providers.js";
@@ -21,6 +21,12 @@ assert.equal(isConversationalPrompt("سلام!"), true);
 assert.equal(isConversationalPrompt("What can you do?"), true);
 assert.equal(isConversationalPrompt("چطور از پتروس استفاده کنم؟"), true);
 assert.equal(isConversationalPrompt("Create an invoice approval process"), false);
+assert.equal(isWorkflowPrompt("Customer refund process"), true);
+assert.equal(isWorkflowPrompt("Add manager approval"), true);
+assert.equal(isWorkflowPrompt("Create an invoice approval flow"), true);
+assert.equal(isWorkflowPrompt("مراحل دریافت، بررسی و تأیید درخواست خرید"), true);
+assert.equal(isWorkflowPrompt("salam khobi? farsi harf bezan"), false);
+assert.equal(isWorkflowPrompt("Tell me about your capabilities"), false);
 assert.match(renderMarkdown("## Health\n- Strong\n- **Fast**"), /<h2>Health<\/h2><ul><li>Strong<\/li><li><strong>Fast<\/strong><\/li><\/ul>/);
 
 const ranked = rankModelPayload({ data: [

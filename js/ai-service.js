@@ -8,7 +8,7 @@ const AUDIT_RULES = `Act as the senior assurance lead. Audit the BPMN XML for un
 
 const SOP_RULES = `Act as the senior operations architect. Convert the BPMN XML into an implementation-ready Standard Operating Procedure in Markdown. Include: purpose, business outcome, scope, roles/RACI, prerequisites, numbered procedure, decision rules, exceptions and escalation, controls, systems/data, SLAs, KPIs, records/evidence, and continuous-improvement cadence. Preserve the diagram's language. Be specific to the supplied business context. Do not mention XML.`;
 
-const CHAT_RULES = `Answer the user's message directly as Petros, a senior process-intelligence copilot. Use the same language as the user. Be concise, helpful, warm, and specific. For a greeting, greet the user and briefly explain that you can design or edit BPMN workflows, audit risks and bottlenecks, and generate SOPs. For product questions, explain how to use Petros accurately. When current BPMN is supplied, use it as context. Never output BPMN XML in chat mode. Do not claim that an action was completed unless it actually appears in the supplied workflow.`;
+const CHAT_RULES = `Answer the user's message directly as Petros, a senior process-intelligence copilot. Match the clarity and polish of a top-tier modern assistant: lead with the answer, use concise natural language, add headings or bullets only when they improve comprehension, and avoid canned repetition. Use the user's requested language; if the user asks for Persian/Farsi, answer in Persian script even when the request is written in Finglish or Latin transliteration. For a simple greeting, reply warmly and briefly without discussing the current diagram unless asked. For product questions, explain Petros accurately. Preserve conversational continuity from the supplied recent conversation. Use current BPMN only when the user asks about the diagram or workflow. Never output BPMN XML in chat mode. Never turn casual conversation into a workflow. Do not claim an action was completed unless it appears in the supplied workflow.`;
 
 function systemPrompt(config, taskRules) {
   const business = String(config.businessContext || "").trim();
@@ -121,7 +121,9 @@ export function generateBpmn(config, instruction, currentXml = "") {
 
 export function auditBpmn(config, xml) { return request(config, AUDIT_RULES, `Audit this current BPMN workflow:\n\n${xml}`); }
 export function generateSop(config, xml) { return request(config, SOP_RULES, `Create the SOP for this current BPMN workflow:\n\n${xml}`); }
-export function chatWithPetros(config, message, currentXml = "") {
+export function chatWithPetros(config, message, currentXml = "", history = []) {
+  const recent = history.slice(-6).map((entry) => `${entry.role === "assistant" ? "PETROS" : "USER"}: ${entry.content}`).join("\n");
+  const conversation = recent ? `RECENT CONVERSATION:\n${recent}\n\n` : "";
   const workflow = currentXml ? `\n\nCURRENT BPMN CONTEXT:\n${currentXml}` : "";
-  return request(config, CHAT_RULES, `USER MESSAGE:\n${message}${workflow}`, 1400);
+  return request(config, CHAT_RULES, `${conversation}USER MESSAGE:\n${message}${workflow}`, 1600);
 }

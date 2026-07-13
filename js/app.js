@@ -1,8 +1,8 @@
-import { translations, applyLanguage } from "./i18n.js?v=3.1.0";
+import { translations, applyLanguage } from "./i18n.js?v=3.2.0";
 import { BLANK_BPMN } from "./blank-bpmn.js?v=3.0.0";
-import { generateBpmn, auditBpmn, generateSop, chatWithPetros } from "./ai-service.js?v=3.1.0";
+import { generateBpmn, auditBpmn, generateSop, chatWithPetros } from "./ai-service.js?v=3.2.0";
 import { BpmnWorkspace } from "./bpmn-service.js?v=3.0.0";
-import { extractBpmnXml, isConversationalPrompt, isEditInstruction, renderMarkdown, safeFilename } from "./utils.js?v=3.1.0";
+import { extractBpmnXml, isEditInstruction, isWorkflowPrompt, renderMarkdown, safeFilename } from "./utils.js?v=3.2.0";
 import { PROVIDERS, getProvider, providerOptions } from "./providers.js?v=3.0.0";
 import { discoverModels, fallbackCatalog } from "./model-service.js?v=3.0.0";
 
@@ -24,7 +24,8 @@ const state = {
   workspace: null,
   documentName: "Untitled Workflow",
   elementCount: 0,
-  resultType: ""
+  resultType: "",
+  chatHistory: []
 };
 
 function loadConfig() {
@@ -121,6 +122,20 @@ function appendAiMessage(markdown, type = "info") {
   $("#conversation").scrollTop = $("#conversation").scrollHeight;
 }
 
+function workflowReply(xml, isUpdate) {
+  const nodeTypes = new Set(["task", "userTask", "serviceTask", "manualTask", "businessRuleTask", "sendTask", "receiveTask", "callActivity", "subProcess", "exclusiveGateway", "parallelGateway", "inclusiveGateway"]);
+  const document = new DOMParser().parseFromString(xml, "application/xml");
+  const steps = [...document.querySelectorAll("*")]
+    .filter((node) => nodeTypes.has(node.localName) && node.getAttribute("name"))
+    .map((node) => node.getAttribute("name").trim())
+    .filter((name, index, names) => name && names.indexOf(name) === index)
+    .slice(0, 7);
+  return t(isUpdate ? "updatedReply" : "generatedReply")
+    .replace("{name}", displayDocumentName())
+    .replace("{count}", state.elementCount)
+    .replace("{steps}", steps.length ? steps.join(" → ") : t("structuredFlow"));
+}
+
 function showResult(type, markdown) {
   state.resultType = type;
   const isAudit = type === "audit";
@@ -154,20 +169,21 @@ async function handleGenerate(event) {
   if (!requireKey()) return;
   appendUserMessage(instruction);
   input.value = "";
-  const isChat = isConversationalPrompt(instruction);
+  const isChat = !isWorkflowPrompt(instruction);
   setBusy(true, isChat ? "chat" : "workflow");
   try {
     if (isChat) {
-      const answer = await chatWithPetros(activeAiConfig(), instruction, await state.workspace.exportXml());
+      const answer = await chatWithPetros(activeAiConfig(), instruction, await state.workspace.exportXml(), state.chatHistory);
       appendAiMessage(answer);
+      state.chatHistory.push({ role: "user", content: instruction }, { role: "assistant", content: answer });
+      state.chatHistory = state.chatHistory.slice(-8);
       return;
     }
     const currentXml = isEditInstruction(instruction) ? state.workspace.xml : "";
     const response = await generateBpmn(activeAiConfig(), instruction, currentXml);
     const xml = extractBpmnXml(response);
-    await state.workspace.import(xml);
-    const replyKey = currentXml ? "updatedReply" : "generatedReply";
-    appendAiMessage(t(replyKey).replace("{count}", state.elementCount).replace("{model}", activeModel()));
+    const importedXml = await state.workspace.import(xml);
+    appendAiMessage(workflowReply(importedXml, Boolean(currentXml)));
     toast(t("generatedTitle"), t("generatedBody"), "success");
   } catch (error) {
     console.error(error);

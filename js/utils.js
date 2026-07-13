@@ -34,6 +34,18 @@ export function isConversationalPrompt(instruction) {
   return /\b(?:who are you|what can you do|how (?:do i|to) use (?:petros|this (?:site|app|platform))|help me use (?:petros|this (?:site|app|platform))|explain (?:petros|this (?:site|app|platform)))\b|(?:تو کی هستی|چه کار(?:ی|هایی) می‌توانی|چطور از (?:پتروس|این (?:سایت|برنامه|پلتفرم)) استفاده|راهنمای استفاده از (?:پتروس|این (?:سایت|برنامه|پلتفرم)))/iu.test(text);
 }
 
+export function isWorkflowPrompt(instruction) {
+  const text = String(instruction || "").trim().toLowerCase();
+  if (!text) return false;
+  if (isEditInstruction(text)) return true;
+  if (/\b(?:bpmn|business process|workflow|process flow|process map|operating procedure|approval flow|onboarding flow|refund process)\b|(?:فرایند|فرآیند|گردش[‌ ]?کار|نمودار\s*bpmn|رویه\s*عملیاتی|فلوچارت)/iu.test(text)) return true;
+  if (/\b(?:create|build|design|draw|map|model|generate)\b[\s\S]{0,80}\b(?:approval|onboarding|refund|invoice|procurement|support ticket|leave request|order|claim|request)\b/iu.test(text)) return true;
+  if (/(?:بساز|طراحی|ترسیم|مدل|ایجاد)[\s\S]{0,80}(?:تأیید|تایید|پذیرش|بازپرداخت|فاکتور|خرید|درخواست|مرخصی|شکایت)/iu.test(text)) return true;
+  const englishSteps = text.match(/\b(?:submit|receive|review|approve|reject|verify|validate|notify|escalate|pay|close|archive|assign)\b/giu) || [];
+  const persianSteps = text.match(/(?:ارسال|دریافت|بررسی|تأیید|تایید|رد|اعتبارسنجی|اعلام|ارجاع|پرداخت|بستن|تخصیص)/gu) || [];
+  return englishSteps.length >= 2 || persianSteps.length >= 2;
+}
+
 export function safeFilename(name, extension) {
   const base = (name || "workflow").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "-").replace(/^-|-$/g, "") || "workflow";
   return `${base}.${extension}`;

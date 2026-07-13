@@ -97,6 +97,9 @@ body[dir="rtl"] .assistant-reply .message-body { border-radius: 12px 3px 12px 12
 .assistant-copy p { color: inherit; margin: 5px 0; }
 .assistant-copy strong { color: #f1f3f5; }
 .assistant-copy code { color: var(--cyan); font: 500 10px var(--mono); }
+.assistant-copy h1, .assistant-copy h2, .assistant-copy h3 { margin: 2px 0 8px; color: #f3f5f7; font-size: 13px; line-height: 1.35; }
+.assistant-copy ul, .assistant-copy ol { margin: 8px 0; padding-inline-start: 20px; }
+.assistant-copy li { margin: 5px 0; }
 
 .insight-card { margin-top: 18px; padding: 15px; border: 1px solid rgba(0,240,255,.14); border-radius: 15px; background: linear-gradient(145deg, rgba(0,240,255,.055), rgba(255,255,255,.02)); }
 .insight-heading { display: flex; align-items: center; gap: 10px; }
